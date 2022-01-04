@@ -1,2 +1,6 @@
 myenv/
 data/
+
+#sandbox notebooks
+pdf_notebook.ipynb
+html_tables.ipynb 
