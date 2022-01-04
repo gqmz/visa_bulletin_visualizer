@@ -66,15 +66,14 @@ class getUrlData():
             #set first row of table as column
             columns = table.iloc[0]
             columns[0:4] = ['EBn', 'ALL', 'CHINA', 'CENTRALAMERICA']
-            table = table[1:]
-            table.columns = columns
+            new_table  = pd.DataFrame(table.values[1:], columns=columns)
 
             #specify state of table
             if idx==0:
-                table['state'] = 'final'
+                new_table.loc[:, 'state'] = 'final'
             else:
-                table['state'] = 'filing'
-            table_list.append(table)
+                new_table.loc[:, 'state'] = 'filing'
+            table_list.append(new_table)
         
         self.data = pd.concat(table_list) #set object data attribute
         self.data['month'] = self.month
