@@ -4,3 +4,6 @@ data/
 #sandbox notebooks
 pdf_notebook.ipynb
 html_tables.ipynb 
+
+#mac-related
+.DS_Store
