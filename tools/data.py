@@ -5,13 +5,18 @@ import pandas as pd
 import numpy as np
 
 #import for url parsing
-from urllib.parse import urlparse
-import validators
+from urllib.parse import urlparse, urlunparse, ParseResult
+
+#import for url validation
 from validators import ValidationFailure
 from validators.url import url
 
 #import global variables
 import tools.variables as variables
+
+#imports for dealing with datetime objects
+from dateutil.rrule import rrule, MONTHLY
+from datetime import datetime
 
 class validUrl():
     """
@@ -21,7 +26,7 @@ class validUrl():
         self.url = url
     
     def is_valid_url(self):
-        result = validators.url(self.url)
+        result = url(self.url)
         if isinstance(result, ValidationFailure):
             return False
         return result
@@ -80,3 +85,34 @@ class getUrlData():
 
         #repluce 'U' (unauthorized) with NaN
         self.data.replace(to_replace='U', value=np.nan, inplace=True)
+
+class urlGen():
+    """
+    Generates list of valid urls
+    Inputs:
+        start & end dates as datetime objects
+    """
+    def __init__(self, start_dt=datetime(2010,1,1), end_dt=datetime.now()):
+        self.start_dt = start_dt
+        self.end_dt = end_dt
+        self.url_list = self.generate_list()
+
+    def build_path(self, month, year):
+        prefix = '/content/travel/en/legal/visa-law0/visa-bulletin/'
+        page = '-'.join(['/visa-bulletin-for-', month, str(year)]) + '.html'
+        return prefix + str(year)  + page
+
+    def generate_list(self):
+        url_list = []
+
+        #generate month, year from 2010 to now: https://stackoverflow.com/a/155172
+        for dt in rrule(freq=MONTHLY, dtstart=self.start_dt, until=self.end_dt):
+            month = variables.MONTH_DICT[dt.month] #get month as string
+            year = dt.year #int
+
+            url_obj = ParseResult(scheme='https',
+                                    netloc='travel.state.gov',
+                                    path=self.build_path(month, year),
+                                    params='', query='', fragment='')
+            url_list.append(urlunparse(url_obj))
+        return url_list
