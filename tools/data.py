@@ -18,6 +18,13 @@ import tools.variables as variables
 from dateutil.rrule import rrule, MONTHLY
 from datetime import datetime
 
+#file manipulation
+import pathlib
+
+"""
+Class definitions
+"""
+
 class validUrl():
     """
     Checks if url is valid, doesn't check if it exists.
@@ -98,21 +105,68 @@ class urlGen():
         self.url_list = self.generate_list()
 
     def build_path(self, month, year):
+        #both month & year come in as ints
         prefix = '/content/travel/en/legal/visa-law0/visa-bulletin/'
-        page = '-'.join(['/visa-bulletin-for-', month, str(year)]) + '.html'
-        return prefix + str(year)  + page
+        page = '-'.join(['/visa-bulletin-for', 
+                        variables.MONTH_DICT[month], 
+                        str(year)]) + '.html'
+
+        fiscal_year = year+1 if month>=10 else year #fiscal year starts in October
+        return prefix + str(fiscal_year) + page
 
     def generate_list(self):
         url_list = []
 
         #generate month, year from 2010 to now: https://stackoverflow.com/a/155172
         for dt in rrule(freq=MONTHLY, dtstart=self.start_dt, until=self.end_dt):
-            month = variables.MONTH_DICT[dt.month] #get month as string
+            month = dt.month #int  #get month as string
             year = dt.year #int
 
+            #https://stackoverflow.com/a/53993037
             url_obj = ParseResult(scheme='https',
                                     netloc='travel.state.gov',
                                     path=self.build_path(month, year),
                                     params='', query='', fragment='')
             url_list.append(urlunparse(url_obj))
         return url_list
+
+class buildDatabase():
+    """
+    Write to ~/data/datalog.csv
+    Inputs:
+        start_dt, end_dt: start & end datetime object
+        all: 
+            True->delete datalog if exists, download all data and save to datalog
+            False->check for datalog:
+                IF doesn't exist, switch to all=True mode
+                ELSE, download & save latest data
+    """
+    def __init__(self, all=True):
+        self.all = all
+        self.router()
+
+    def router(self):
+        """
+        routes control flow based on value of self.all
+        """
+        if self.all:
+            variables.DATALOG.unlink(missing_ok=True) #delete file, will be replaces
+
+            #build url_list
+            gen = urlGen(start_dt=datetime(2020,10,1), end_dt=datetime(2021,6,1)) #use defaults
+            
+            table_list = []
+            for url in gen.url_list:
+                if validUrl(url).is_valid_url(): #validate url
+                    try:
+                        data_object = getUrlData(url)
+                        table_list.append(data_object.data)
+                    except Exception as e:
+                        print(e)
+                        print(url)
+            
+            data = pd.concat(table_list)
+            data.to_csv(variables.DATALOG) #write all data to datalog
+
+
+    
