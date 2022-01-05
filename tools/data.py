@@ -10,6 +10,9 @@ import validators
 from validators import ValidationFailure
 from validators.url import url
 
+#import global variables
+import tools.variables as variables
+
 class validUrl():
     """
     Checks if url is valid, doesn't check if it exists.
@@ -46,12 +49,6 @@ class getUrlData():
 
         self.month = page_elements[3]
         self.year = page_elements[4]
-        
-        #type-cast year
-        try:
-            self.year = int(self.year)
-        except ValueError:
-            print("URL year is not an integer")
 
     def get_tables(self):
         #extract date from url
@@ -76,8 +73,10 @@ class getUrlData():
             table_list.append(new_table)
         
         self.data = pd.concat(table_list) #set object data attribute
-        self.data['month'] = self.month
-        self.data['year'] = self.year
+
+        #add datetime to table
+        self.data['date'] = '-'.join([self.year, str(variables.MONTH_DICT_REV[self.month]), '1'])
+        self.data['date'] = pd.to_datetime(self.data['date'])
 
         #repluce 'U' (unauthorized) with NaN
         self.data.replace(to_replace='U', value=np.nan, inplace=True)
