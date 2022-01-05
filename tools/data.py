@@ -151,22 +151,48 @@ class buildDatabase():
         """
         if self.all:
             variables.DATALOG.unlink(missing_ok=True) #delete file, will be replaces
-
             #build url_list
-            gen = urlGen(start_dt=datetime(2020,10,1), end_dt=datetime(2021,6,1)) #use defaults
-            
-            table_list = []
-            for url in gen.url_list:
-                if validUrl(url).is_valid_url(): #validate url
-                    try:
-                        data_object = getUrlData(url)
-                        table_list.append(data_object.data)
-                    except Exception as e:
-                        print(e)
-                        print(url)
-            
-            data = pd.concat(table_list)
-            data.to_csv(variables.DATALOG) #write all data to datalog
+            data = self.get_url_data() #use defaults
+            data.to_csv(variables.DATALOG)
+        else: #user wants to update datalog
+            if not variables.DATALOG.is_file(): #datalog doesn't exist
+                #build url_list
+                data = self.get_url_data()
+                data.to_csv(variables.DATALOG)
+            else: #datalog exists
+                old_data = pd.read_csv(variables.DATALOG)
+
+                #find start date
+                latest_date = old_data['date'].max()
+                (year, month, day) = [int(x) for x in latest_date.split('-')]
+                start = datetime(year=year+int(month/12),
+                                    month=(month%12)+1, day=1)
+                
+                #build url_list
+                data = self.get_url_data(start=start)
+                pd.concat([old_data, data]).to_csv(variables.DATALOG)
+
+    def get_url_data(self, start=variables.START_DATE, end=datetime.now()):
+        """
+        Input:
+            start & end datetime objects
+        Output:
+            dataframe object
+        """
+        gen = urlGen(start_dt=start, end_dt=end)
+        table_list = []
+        for url in gen.url_list:
+            if validUrl(url).is_valid_url(): #validate url
+                #note: exception catching should be in getUrlData class
+                try:
+                    data_object = getUrlData(url)
+                    table_list.append(data_object.data)
+                except Exception as e:
+                    print(e)
+                    print(url)
+        data = pd.concat(table_list)
+        return data
+
 
 
     
