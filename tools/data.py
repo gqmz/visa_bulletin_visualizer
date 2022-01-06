@@ -153,12 +153,12 @@ class buildDatabase():
             variables.DATALOG.unlink(missing_ok=True) #delete file, will be replaces
             #build url_list
             data = self.get_url_data() #use defaults
-            data.to_csv(variables.DATALOG)
+            data.to_csv(variables.DATALOG, index=None)
         else: #user wants to update datalog
             if not variables.DATALOG.is_file(): #datalog doesn't exist
                 #build url_list
                 data = self.get_url_data()
-                data.to_csv(variables.DATALOG)
+                data.to_csv(variables.DATALOG, index=None)
             else: #datalog exists
                 old_data = pd.read_csv(variables.DATALOG)
 
@@ -170,7 +170,7 @@ class buildDatabase():
                 
                 #build url_list
                 data = self.get_url_data(start=start)
-                pd.concat([old_data, data]).to_csv(variables.DATALOG)
+                pd.concat([old_data, data]).to_csv(variables.DATALOG, index=None)
 
     def get_url_data(self, start=variables.START_DATE, end=datetime.now()):
         """
