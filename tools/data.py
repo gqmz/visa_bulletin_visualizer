@@ -1,8 +1,6 @@
-#imports for HTML extraction
-import requests
-import lxml.html as lh
 import pandas as pd 
 import numpy as np
+import regex as re
 
 #import for url parsing
 from urllib.parse import urlparse, urlunparse, ParseResult
@@ -69,30 +67,95 @@ class getUrlData():
         #extract employment tables from url
         tables = pd.read_html(self.valid_url)
         employment_tables = [x for x in tables if len(x)==9] #employment tables have len=9
-        
-        table_list = []
-        for idx, table in enumerate(employment_tables):
-            #set first row of table as column
-            columns = table.iloc[0]
-            columns[0:4] = ['EBn', 'ALL', 'CHINA', 'CENTRALAMERICA']
-            new_table  = pd.DataFrame(table.values[1:], columns=columns)
 
-            #specify state of table
-            if idx==0:
-                new_table.loc[:, 'state'] = 'final'
+        self.combine_tables(employment_tables) #combine tables into data attribute
+        self.data_column_operations()
+        self.data_row_operations()
+
+    def combine_tables(self, employment_tables):
+        """
+        Input:
+            employment_tables: contains 2 tables, one each for final & final action dates for employment-based green cards
+        1. Set standardized columns for EACH table read from url
+        2. Concat tables into data attribute
+        """
+        #1. Set standardized columns for EACH table read from url
+        for idx1, table in enumerate(employment_tables):
+            columns = list(table.iloc[0]) #first row contains raw columns names
+        
+            #iterate through column names & modify list elements
+            for idx, col in enumerate(columns):
+                if 'CHINA' in col:
+                    columns[idx] = 'CHINA'
+                elif any(s in col for s in ['EL', 'SALVADOR', 'GUATEMALA']):
+                    columns[idx] = 'CENTRALAMERICA'
+                elif 'Employment' in col:
+                    columns[idx] = 'EBn'
+                elif any(s in col for s in ['All', 'Chargeability', 'Except']):
+                    columns[idx] = 'ALL'
+                else:
+                    pass #don't change this element
+
+            #modify attribute with correct row selection, standard columns
+            employment_tables[idx1]  = pd.DataFrame(table.values[1:], columns=columns)
+
+            #add state of table
+            if idx1==0:
+                employment_tables[idx1]['state'] = 'final'
             else:
-                new_table.loc[:, 'state'] = 'filing'
-            table_list.append(new_table)
-        
-        self.data = pd.concat(table_list) #set object data attribute
+                employment_tables[idx1]['state'] = 'filing'
 
-        #add datetime to table
-        self.data['date'] = '-'.join([self.year, str(variables.MONTH_DICT_REV[self.month]), '1'])
-        self.data['date'] = pd.to_datetime(self.data['date'])
+        #2. Concat tables into data attribute
+        self.data = pd.concat(employment_tables)
 
-        #repluce 'U' (unauthorized) with NaN
+    def data_column_operations(self):
+        """
+        Modify data columns in place
+        1. add bulletin date as column
+        """
+        #1. add bulletin date as column
+        self.data['date'] = '-'.join([self.year, str(variables.MONTH_DICT_REV[self.month]), '1'])#add bulletin release date as column (YYYY-MM-DD format)
+
+    def data_row_operations(self):
+        """
+        Modify data rows in place
+        1. U->np.nan
+        2. clean up EBn column values
+        3. C->bulletin date, swap out dates
+        """
+        #1. U->np.nan
         self.data.replace(to_replace='U', value=np.nan, inplace=True)
 
+        #2. clean up EBn column values
+        def categories(x):
+            """
+            Define how to modify cell value
+            """
+            if any(s in x for s in ['I5', 'R5']):
+                return '5th regional'
+            elif any(s in x for s in ['C5', 'T5']):
+                return '5th non-regional'
+            elif any(s in x for s in ['Certain', 'Religious']):
+                return 'Religious Workers'
+            else:
+                return x
+        self.data['EBn'] = self.data['EBn'].apply(lambda x: categories(x))
+
+        #3. C->bulletin date, swap out dates
+        month_abbr_dict = {k[0:3].upper():str(v) for k,v in variables.MONTH_DICT_REV.items()}
+        def swap_dates(x):
+            if x!=x: #math.isnan(x) throws TypeError: must be real number, not str
+                return x #return np.nan as is
+            elif re.match(r"^\d{2}[A-Z]{3}\d{2}", x): #match date format from url
+                day, month, year = x[0:2], x[2:5], x[5:]
+                x = '-'.join(['20'+year, month_abbr_dict[month], day])
+
+            return x #returns swapped date or previously filled in date (the C's)
+        countries = list(set(self.data.columns) - set(['EBn', 'state', 'date']))
+        for country in countries:
+            self.data[country] = np.where(self.data[country]=='C', self.data['date'], self.data[country])
+            self.data[country] = self.data[country].apply(lambda x: swap_dates(x))
+        
 class urlGen():
     """
     Generates list of valid urls
@@ -190,6 +253,8 @@ class buildDatabase():
                 except Exception as e:
                     print(e)
                     print(url)
+
+        #concat data object from all urls
         data = pd.concat(table_list)
         return data
 
