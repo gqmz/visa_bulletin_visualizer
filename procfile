@@ -1,1 +1,1 @@
-web: gunicorn plots/dash_plots:server
+web: gunicorn dash_plots:server
