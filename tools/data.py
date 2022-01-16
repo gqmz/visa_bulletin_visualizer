@@ -68,6 +68,7 @@ class getUrlData():
             self.check_tables(tables)
         except Exception as e:
             print(f"Exception during pd.read_html {e}")
+            print(f"url: {self.valid_url}")
             self.data = pd.DataFrame()
 
     def check_tables(self, tables):
@@ -84,6 +85,7 @@ class getUrlData():
             except Exception as e:
                 #if ANY error occurs during table processing
                 print(f"Exception during table processing {e}")
+                print(f"url: {self.valid_url}")
                 self.data = pd.DataFrame()
         else:
             self.data = pd.DataFrame()
