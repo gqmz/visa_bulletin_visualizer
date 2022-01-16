@@ -47,6 +47,7 @@ class getUrlData():
     """
     def __init__(self, valid_url):
         self.valid_url = valid_url
+        self.get_date()
         self.get_tables()
 
     def get_date(self):
@@ -61,16 +62,31 @@ class getUrlData():
         self.year = page_elements[4]
 
     def get_tables(self):
-        #extract date from url
-        self.get_date()
-
         #extract employment tables from url
-        tables = pd.read_html(self.valid_url)
-        employment_tables = [x for x in tables if len(x)==9] #employment tables have len=9
+        try:
+            tables = pd.read_html(self.valid_url)
+            self.check_tables(tables)
+        except Exception as e:
+            print(f"Exception during pd.read_html {e}")
+            self.data = pd.DataFrame()
 
-        self.combine_tables(employment_tables) #combine tables into data attribute
-        self.data_column_operations()
-        self.data_row_operations()
+    def check_tables(self, tables):
+        """
+        check for employment tables
+        Post 2010 urls expect exactly 2 tables meeting criterion
+        """
+        employment_tables = [x for x in tables if len(x)==9] #employment tables have len=9
+        if len(employment_tables)==2:
+            try:
+                self.combine_tables(employment_tables) #combine tables into data attribute
+                self.data_column_operations()
+                self.data_row_operations()
+            except Exception as e:
+                #if ANY error occurs during table processing
+                print(f"Exception during table processing {e}")
+                self.data = pd.DataFrame()
+        else:
+            self.data = pd.DataFrame()
 
     def combine_tables(self, employment_tables):
         """
