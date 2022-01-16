@@ -244,13 +244,18 @@ class buildDatabase():
                 old_data = pd.read_csv(variables.DATALOG)
 
                 #find start date
-                latest_date = old_data['date'].max()
-                (year, month, day) = [int(x) for x in latest_date.split('-')]
+                old_data['date'] = pd.to_datetime(old_data['date'])
+                latest_date = old_data['date'].max() #pandas.Timestamp object
+                # (year, month, day) = [int(x) for x in latest_date.split('-')]
+                (year, month, day) = latest_date.year, latest_date.month, latest_date.day 
+
                 start = datetime(year=year+int(month/12),
                                     month=(month%12)+1, day=1)
+                print(latest_date, start)
                 
                 #build url_list
                 data = self.get_url_data(start=start)
+                variables.DATALOG.unlink(missing_ok=True) #delete file, will be replaces
                 pd.concat([old_data, data]).to_csv(variables.DATALOG, index=None)
 
     def get_url_data(self, start=variables.START_DATE, end=datetime.now()):
@@ -260,20 +265,22 @@ class buildDatabase():
         Output:
             dataframe object
         """
+        data = pd.DataFrame()
+
         gen = urlGen(start_dt=start, end_dt=end)
-        table_list = []
-        for url in gen.url_list:
-            if validUrl(url).is_valid_url(): #validate url
-                #note: exception catching should be in getUrlData class
-                try:
+        """
+        note: start date is calculated as (latest_month in DATALOG) + 1, 
+        so if user uses self.all=True when (latest_month in DATALOG) == current month, rrule will not iterate in urlGen
+        """
+        if len(gen.url_list)>0:
+            table_list = []
+            for url in gen.url_list:
+                if validUrl(url).is_valid_url(): #validate url
                     data_object = getUrlData(url)
                     table_list.append(data_object.data)
-                except Exception as e:
-                    print(e)
-                    print(url)
 
-        #concat data object from all urls
-        data = pd.concat(table_list)
+            #concat data object from all urls
+            data = pd.concat(table_list)
         return data
 
 
