@@ -1,6 +1,6 @@
 # Visa Bulletin Visualizer
 
-Dash web app to visualize employment-based priority date data released by USCIS [link](https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html. Specifically, data tables are pulled from every monthly bullentin since 2016 and plotted by visa class. The user can select data by country and insert a marker for priority date.
+Dash web app to visualize employment-based priority date data released by USCIS [link](https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html). Specifically, data tables are pulled from every monthly bullentin since 2016 and plotted by visa class. The user can select data by country and insert a marker for priority date.
 
 ## Repository structure
 
